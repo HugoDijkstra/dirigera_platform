@@ -42,13 +42,11 @@ async def async_get_triggers(hass: HomeAssistant, device_id: str) -> list[dict[s
          
         registry_entity = registry_entry.entity
         
-        if "identifiers" not in registry_entity.device_info or len(list(registry_entity.device_info["identifiers"])[0]) < 2:
-            logger.warning(f"entity_id: {entity_id} corresponding in dirigera_platform entity doesnt have identifiers or isnt 2 entries long, device_info : {registry_entity.device_info}")
-        logger.info(registry_entity.device_info["identifiers"])
-        registry_entity_id = list(registry_entity.device_info["identifiers"])[0][1]
-        
-        if registry_entity_id != entity_id:
-            logger.error(f"Found controller with entity id : {registry_entity_id} but doesnt match requested entity id: {entity_id}")
+        # Only the controller entity itself carries triggers (not e.g. its battery sensor).
+        # Note: the HA device identifier is now the shared relationId, so compare unique ids instead.
+        registry_entity_id = registry_entity.unique_id
+        if registry_entity_id != entity_id or not hasattr(registry_entity, "number_of_buttons"):
+            logger.debug(f"Entity {entity_id} is not a controller entity, skipping")
             continue
         
         logger.debug(f"Found controller to tag events to entity : {entity_name}")

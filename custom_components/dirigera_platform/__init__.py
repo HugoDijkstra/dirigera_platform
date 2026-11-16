@@ -21,6 +21,7 @@ import homeassistant.helpers.config_validation as cv
 
 from .const import DOMAIN, CONF_HIDE_DEVICE_SET_BULBS, PLATFORM, DISCOVERY_COORDINATOR
 from .hub_event_listener import hub_event_listener
+from . import device_grouping
 from .device_discovery import DeviceDiscoveryCoordinator, set_discovery_coordinator
 
 PLATFORMS_TO_SETUP = [  Platform.SWITCH, 
@@ -219,9 +220,26 @@ async def async_setup_entry(
         # This ensures areas are set correctly after HA restart
         await hub_events.sync_all_device_areas()
 
+    # Devices used to be created per hub "function" id; now multi-function products are
+    # merged by relationId. Remove the old, now-empty per-function devices.
+    _remove_orphaned_devices(hass, entry)
+
     logger.debug("Complete async_setup_entry...")
 
     return True
+
+def _remove_orphaned_devices(hass: core.HomeAssistant, entry: config_entries.ConfigEntry) -> None:
+    from homeassistant.helpers import device_registry as dr, entity_registry as er
+    device_reg = dr.async_get(hass)
+    entity_reg = er.async_get(hass)
+    for device_entry in dr.async_entries_for_config_entry(device_reg, entry.entry_id):
+        hub_ids = [i[1] for i in device_entry.identifiers if i[0] == DOMAIN]
+        if not hub_ids or not all(device_grouping.is_grouped_member(h) for h in hub_ids):
+            continue
+        if er.async_entries_for_device(entity_reg, device_entry.id, include_disabled_entities=True):
+            continue
+        logger.info(f"Removing old per-function device {device_entry.name} ({hub_ids}), now merged")
+        device_reg.async_remove_device(device_entry.id)
 
 async def options_update_listener(
     hass: core.HomeAssistant, config_entry: config_entries.ConfigEntry

@@ -15,6 +15,7 @@ from dirigera.devices.device import Room
 from homeassistant.const import ATTR_ENTITY_ID
 from homeassistant.components.light import ColorMode
 from homeassistant.helpers import device_registry as dr, entity_registry as er, area_registry as ar
+from . import device_grouping
 
 logger = logging.getLogger("custom_components.dirigera_platform.hub_event_listener")
 
@@ -102,8 +103,8 @@ class hub_event_listener(threading.Thread):
             device_reg = dr.async_get(self._hass)
             area_reg = ar.async_get(self._hass)
 
-            # Find the device entry
-            device_entry = device_reg.async_get_device({("dirigera_platform", device_id)})
+            # Find the device entry (multi-function products share one HA device)
+            device_entry = device_reg.async_get_device({("dirigera_platform", device_grouping.group_id_for_hub_id(device_id))})
             if device_entry is None:
                 logger.debug(f"Device {device_id} not found in HA device registry")
                 return
@@ -135,11 +136,16 @@ class hub_event_listener(threading.Thread):
         try:
             device_reg = dr.async_get(self._hass)
 
-            # Find the device entry
-            device_entry = device_reg.async_get_device({("dirigera_platform", device_id)})
+            # Find the device entry (multi-function products share one HA device)
+            device_entry = device_reg.async_get_device({("dirigera_platform", device_grouping.group_id_for_hub_id(device_id))})
             if device_entry is None:
                 logger.debug(f"Device {device_id} not found in HA device registry for name update")
                 return
+
+            # For grouped products, the device keeps the name of its primary part
+            json_data = getattr(getattr(hub_event_listener.device_registry.get(device_id), "entity", None), "_json_data", None)
+            if json_data is not None:
+                new_name = device_grouping.device_name(json_data)
 
             # Only update if user hasn't set a custom name
             if device_entry.name_by_user is not None:

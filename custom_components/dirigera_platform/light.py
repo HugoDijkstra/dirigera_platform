@@ -18,6 +18,7 @@ from homeassistant.const import CONF_IP_ADDRESS, CONF_TOKEN
 from homeassistant.core import HomeAssistantError
 from homeassistant.helpers.entity import DeviceInfo
 
+from . import device_grouping
 from .const import DOMAIN, CONF_HIDE_DEVICE_SET_BULBS, PLATFORM, DISCOVERY_COORDINATOR
 from .hub_event_listener import hub_event_listener, registry_entry
 from .device_discovery import get_discovery_coordinator
@@ -123,6 +124,7 @@ class ikea_bulb(LightEntity):
         self._ignore_update = False 
 
         # Register the device for updates
+        device_grouping.register(self)
         hub_event_listener.register(self._json_data.id, registry_entry(self))
 
         self.set_state()
@@ -192,14 +194,7 @@ class ikea_bulb(LightEntity):
     @property
     def device_info(self) -> DeviceInfo:
 
-        return DeviceInfo(
-            identifiers={("dirigera_platform", self._json_data.id)},
-            name=self.name,
-            manufacturer=self._json_data.attributes.manufacturer,
-            model=self._json_data.attributes.model,
-            sw_version=self._json_data.attributes.firmware_version,
-            suggested_area=self._json_data.room.name if self._json_data.room is not None else None,
-        )
+        return device_grouping.device_info(self._json_data)
 
     @property
     def name(self):  

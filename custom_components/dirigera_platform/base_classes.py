@@ -34,6 +34,7 @@ from dirigera.devices.air_purifier import FanModeEnum
 
 from .hub_event_listener import hub_event_listener, registry_entry
 from .const import DOMAIN
+from . import device_grouping
 
 from enum import Enum 
 import logging 
@@ -65,6 +66,8 @@ class ikea_base_device:
         # inject properties based on attr
         induce_properties(ikea_base_device, self._json_data.attributes.dict())
         
+        device_grouping.register(self)
+
         # Register the device for updates
         if self.should_register_with_listener:
             hub_event_listener.register(self._json_data.id, registry_entry(self))
@@ -95,14 +98,7 @@ class ikea_base_device:
     @property
     def device_info(self) -> DeviceInfo:
         
-        return DeviceInfo(
-            identifiers={("dirigera_platform", self._json_data.id)},
-            name=self.name,
-            manufacturer=self._json_data.attributes.manufacturer,
-            model=self._json_data.attributes.model,
-            sw_version=self._json_data.attributes.firmware_version,
-            suggested_area=self._json_data.room.name if self._json_data.room is not None else None,
-        )
+        return device_grouping.device_info(self._json_data)
 
     @property
     def name(self):
