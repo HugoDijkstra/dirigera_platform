@@ -152,11 +152,13 @@ class ikea_bulb(LightEntity):
             elif cap == "colorTemperature":
                 color_modes.append(ColorMode.COLOR_TEMP)
             elif cap == "colorHue" or cap == "colorSaturation":
-                color_modes.append(ColorMode.HS)
+                # both map to HS, add it once
+                if ColorMode.HS not in color_modes:
+                    color_modes.append(ColorMode.HS)
 
         # Based on documentation here
         # https://developers.home-assistant.io/docs/core/entity/light#color-modes
-        if len(color_modes) > 1:
+        if len(color_modes) > 1 and ColorMode.BRIGHTNESS in color_modes:
             # If there are more color modes which means we have either temperature
             # or HueSaturation. then lets make sure BRIGHTNESS is not part of it
             # as per above documentation
